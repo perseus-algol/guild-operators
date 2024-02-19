@@ -362,23 +362,26 @@ download_cnodebins() {
     echo -e "\nDownloading binaries.."
     pushd "${HOME}"/tmp >/dev/null || err_exit
     echo -e "\n WARNING: Downloading Cardano Node archive created from Armada Alliance builds. These are third party binary builds with no intrinsice method of validation/verification."
-    wget -O cardano-submit-api-3_2_1.zip https://github.com/armada-alliance/cardano-node-binaries/blob/main/static-binaries/cardano-submit-api/cardano-submit-api-3_2_1.zip?raw=true
-    unzip cardano-submit-api-3_2_1.zip   
-    mv -v -t "${HOME}"/.local/bin/ cardano-submit-api-3_2_1/cardano-submit-api
-    wget -O  cardano-8_1_2-aarch64-static-musl-ghc_928.zip https://github.com/armada-alliance/cardano-node-binaries/blob/main/static-binaries/cardano-8_1_2-aarch64-static-musl-ghc_928.zip?raw=true
-    unzip cardano-8_1_2-aarch64-static-musl-ghc_928.zip
-    mv -v -t "${HOME}"/.local/bin/ cardano-8_1_2-aarch64-static-musl-ghc_928/cardano-cli cardano-8_1_2-aarch64-static-musl-ghc_928/cardano-node
-    rm -rf cardano-submit-api-3_2_1/ cardano-submit-api-3_2_1.zip  cardano-8_7_3-aarch64-static-musl-ghc_928/ cardano-8_1_2-aarch64-static-musl-ghc_928.zip
-    wget -O bech32-1_1_4_1.zip https://github.com/armada-alliance/cardano-node-binaries/blob/main/static-binaries/bech32/bech32-1_1_4_1.zip?raw=true
-    unzip bech32-1_1_4_1.zip
-    mv -v -t "${HOME}"/.local/bin/ bech32-1_1_4_1/bech32
-    ls -l
+    wget -O cardano-submit.zip https://github.com/armada-alliance/cardano-node-binaries/blob/main/static-binaries/cardano-submit-api/cardano-submit-api-3_2_1.zip?raw=true
+    unzip cardano-submit.zip   
+    mv -v -t "${HOME}"/.local/bin/ cardano-submit-api*/cardano-submit-api
+    ls -l "${HOME}"/.local/bin/
+    wget -O  cardano-node.zip https://github.com/armada-alliance/cardano-node-binaries/blob/main/static-binaries/cardano-8_7_3-aarch64-static-musl-ghc_963.zip?raw=true
+    unzip cardano-node.zip
+    mv -v -t "${HOME}"/.local/bin/ cardano-8_7_3*/cardano-cli cardano-8_7_3*/cardano-node
+    ls -l "${HOME}"/.local/bin/
+    rm -rf cardano-submit-api*/ cardano-submit-api*.zip  cardano-8_7_3*/ cardano-node.zip
+    wget -O bech32.zip https://github.com/armada-alliance/cardano-node-binaries/blob/main/static-binaries/bech32/bech32-1_1_4_1.zip?raw=true
+    unzip bech32.zip
+    mv -v -t "${HOME}"/.local/bin/ bech32*/bech32
+    ls -l "${HOME}"/.local/bin/
     [[ -f "${HOME}"/.local/bin/cardano-node ]] || err_exit " cardano-node archive downloaded but binary (cardano-node) not found after extracting package!"
     echo -e "\n  Downloading Github release package for Cardano Wallet from Armada Alliance"
     curl -m 200 -sfL https://github.com/armada-alliance/cardano-node-binaries/blob/main/miscellaneous/cardano-address.zip?raw=true -o caddress.zip || err_exit " Could not download cardano-wallet's latest release archive from IO github!"
     unzip caddress.zip 
     mv -v -t "${HOME}"/.local/bin/ cardano-address
     rm -rf caddress.zip cardano-address __MACOSX
+    ls -l "${HOME}"/.local/bin/
     [[ -f "${HOME}"/.local/bin/cardano-address ]] || err_exit " cardano-address archive downloaded but binary (bin/cardano-address) not found after extracting package!"
   else
     echo -e "\nDownloading binaries.."
