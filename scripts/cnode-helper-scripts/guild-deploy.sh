@@ -377,8 +377,8 @@ download_cnodebins() {
     echo -e "\n  Downloading Github release package for Cardano Wallet from Armada Alliance"
     curl -m 200 -sfL https://github.com/armada-alliance/cardano-node-binaries/blob/main/miscellaneous/cardano-address.zip?raw=true -o caddress.zip || err_exit " Could not download cardano-wallet's latest release archive from IO github!"
     unzip caddress.zip 
-    mv -v -t "${HOME}"/.local/bin/ cardano-address/cardano-address
-    rm -rf caddress.zip cardano-address/
+    mv -v -t "${HOME}"/.local/bin/ cardano-address
+    rm -rf caddress.zip cardano-address __MACOSX
     [[ -f "${HOME}"/.local/bin/cardano-address ]] || err_exit " cardano-address archive downloaded but binary (bin/cardano-address) not found after extracting package!"
   else
     echo -e "\nDownloading binaries.."
