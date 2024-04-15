@@ -35,12 +35,13 @@ usage() {
 			  setup               Setup mithril environment file
 			  override            Override default variable in the mithril environment file
 			  update              Update mithril environment file
-			snapshot              Interact with Mithril snapshots
-			  download            Download latest Mithril snapshot
-			  list                List available Mithril snapshots
-			    json              List availble Mithril snapshots in JSON format
-			  show                Show details of a Mithril snapshot
-			    json              Show details of a Mithril snapshot in JSON format
+			cardano-db            Interact with Cardano DB
+			  download            Download Cardano DB from Mithril snapshot
+			  snapshot            Interact with Mithril snapshots
+			    list              List available Mithril snapshots
+			      json            List availble Mithril snapshots in JSON format
+			    show              Show details of a Mithril snapshot
+			      json            Show details of a Mithril snapshot in JSON format
 			stake-distribution    Interact with Mithril stake distributions
 			  download            Download latest stake distribution
 			  list                List available stake distributions
@@ -114,18 +115,22 @@ remove_db_dir() {
 download_snapshot() {
   if [[ "${DOWNLOAD_SNAPSHOT}" == "Y" ]]; then
     echo "INFO: Downloading latest mithril snapshot.."
-    "${MITHRILBIN}" -v --aggregator-endpoint ${AGGREGATOR_ENDPOINT} snapshot download --download-dir ${CNODE_HOME} ${SNAPSHOT_DIGEST}
+    "${MITHRILBIN}" -v --aggregator-endpoint ${AGGREGATOR_ENDPOINT} cardano-db download --download-dir ${CNODE_HOME} ${SNAPSHOT_DIGEST}
   else
     echo "INFO: Skipping snapshot download.."
   fi
 }
 
 list_snapshots() {
-  if [[ $1 == "json" ]]; then
-    "${MITHRILBIN}" -v --aggregator-endpoint ${AGGREGATOR_ENDPOINT} snapshot list --json
-  else
-    "${MITHRILBIN}" -v --aggregator-endpoint ${AGGREGATOR_ENDPOINT} snapshot list
-  fi
+  local json_flag=""
+
+  for arg in "$@"; do
+    if [[ $arg == "json" ]]; then
+      json_flag="--json"
+    fi
+  done
+
+  "${MITHRILBIN}" -v --aggregator-endpoint ${AGGREGATOR_ENDPOINT} cardano-db snapshot list $json_flag
 }
 
 show_snapshot() {
@@ -145,7 +150,7 @@ show_snapshot() {
     exit 1
   fi
 
-  "${MITHRILBIN}" -v --aggregator-endpoint ${AGGREGATOR_ENDPOINT} snapshot show $digest $json_flag
+  "${MITHRILBIN}" -v --aggregator-endpoint ${AGGREGATOR_ENDPOINT} cardano-db snapshot show $digest $json_flag
 }
 
 ## mithril-stake-distribution subcommands
@@ -196,31 +201,34 @@ case $1 in
         ;;
     esac
     ;;
-  snapshot)
+  cardano-db)
     case $2 in
       download)
         check_db_dir
         remove_db_dir
         download_snapshot
         ;;
-      list)
-        case $3 in
-          json)
-            list_snapshots json
+      snapshot)
+        case $3 in 
+          list)
+            case $4 in
+              json)
+                list_snapshots json
+                ;;
+              *)
+                list_snapshots
+                ;;
+            esac
+            ;;
+          show)
+            show_snapshot $4 $5
             ;;
           *)
-            list_snapshots
+            echo "Invalid snapshot subcommand: $3" >&2
+            usage
+            exit 1
             ;;
         esac
-        ;;
-      show)
-        show_snapshot $3 $4
-        ;;
-      *)
-        echo "Invalid snapshot subcommand: $2" >&2
-        usage
-        exit 1
-        ;;
     esac
     ;;
   stake-distribution)
