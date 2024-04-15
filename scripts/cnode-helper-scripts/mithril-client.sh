@@ -2,7 +2,7 @@
 # shellcheck disable=SC2086
 #shellcheck source=/dev/null
 
-. "$(dirname $0)"/env offline
+. "$(dirname $0)"/mithril.library
 
 ######################################
 # User Variables - Change as desired #
@@ -50,61 +50,9 @@ EOF
 }
 
 SKIP_UPDATE=N
-[[ $1 = "-u" ]] && SKIP_UPDATE=Y && shift
+[[ $1 = "-u" ]] && export SKIP_UPDATE=Y && shift
 
 ## mithril environment subcommands
-
-environment_setup() {
-  local env_file="${CNODE_HOME}/mithril/mithril.env"
-
-  if [[ -f "$env_file" ]]; then
-    if [[ "$UPDATE_ENVIRONMENT" != "Y" ]]; then
-      echo "Error: $env_file already exists. To update it, set UPDATE_ENVIRONMENT to 'Y'." >&2
-      return 1
-    else
-      echo "Updating $env_file..."
-    fi
-  else
-    echo "Creating $env_file..."
-  fi
-  
-  if [[ ! -d "${CNODE_HOME}/mithril/data-stores" ]]; then
-    sudo mkdir -p "${CNODE_HOME}"/mithril/data-stores
-    sudo chown -R "$U_ID":"$G_ID" "${CNODE_HOME}"/mithril 2>/dev/null
-  fi
-  if [[ -n "${POOL_NAME}" ]] && [[ "${POOL_NAME}" != "CHANGE_ME" ]]; then
-    export ERA_READER_ADDRESS=https://raw.githubusercontent.com/input-output-hk/mithril/main/mithril-infra/configuration/${RELEASE}-${NETWORK_NAME,,}/era.addr
-    export ERA_READER_VKEY=https://raw.githubusercontent.com/input-output-hk/mithril/main/mithril-infra/configuration/${RELEASE}-${NETWORK_NAME,,}/era.vkey
-    bash -c "cat <<-'EOF' > ${CNODE_HOME}/mithril/mithril.env
-		KES_SECRET_KEY_PATH=${POOL_DIR}/${POOL_HOTKEY_SK_FILENAME}
-		OPERATIONAL_CERTIFICATE_PATH=${POOL_DIR}/${POOL_OPCERT_FILENAME}
-		NETWORK=${NETWORK_NAME,,}
-		RELEASE=${RELEASE}
-		AGGREGATOR_ENDPOINT=https://aggregator.${RELEASE}-${NETWORK_NAME,,}.api.mithril.network/aggregator
-		RUN_INTERVAL=60000
-		DB_DIRECTORY=${CNODE_HOME}/db
-		CARDANO_NODE_SOCKET_PATH=${CARDANO_NODE_SOCKET_PATH}
-		CARDANO_CLI_PATH=${HOME}/.local/bin/cardano-cli
-		DATA_STORES_DIRECTORY=${CNODE_HOME}/mithril/data-stores
-		STORE_RETENTION_LIMITS=5
-		ERA_READER_ADAPTER_TYPE=cardano-chain
-		ERA_READER_ADAPTER_PARAMS=$(jq -nc --arg address "$(wget -q -O - "${ERA_READER_ADDRESS}")" --arg verification_key "$(wget -q -O - "${ERA_READER_VKEY}")" '{"address": $address, "verification_key": $verification_key}')
-		GENESIS_VERIFICATION_KEY=$(wget -q -O - https://raw.githubusercontent.com/input-output-hk/mithril/main/mithril-infra/configuration/${RELEASE}-${NETWORK_NAME,,}/genesis.vkey)
-		PARTY_ID=$(cat ${POOL_DIR}/${POOL_ID_FILENAME})
-		SNAPSHOT_DIGEST=latest
-		EOF"
-  else
-    bash -c "cat <<-'EOF' > ${CNODE_HOME}/mithril/mithril.env
-		NETWORK=${NETWORK_NAME,,}
-		RELEASE=${RELEASE}
-		AGGREGATOR_ENDPOINT=https://aggregator.${RELEASE}-${NETWORK_NAME,,}.api.mithril.network/aggregator
-		DB_DIRECTORY=${CNODE_HOME}/db
-		GENESIS_VERIFICATION_KEY=$(wget -q -O - https://raw.githubusercontent.com/input-output-hk/mithril/main/mithril-infra/configuration/${RELEASE}-${NETWORK_NAME,,}/genesis.vkey)
-		SNAPSHOT_DIGEST=latest
-		EOF"
-  fi
-  chown $USER:$USER "${CNODE_HOME}"/mithril/mithril.env
-}
 
 environment_override() {
   local var_to_override="$1"
@@ -121,48 +69,15 @@ environment_override() {
   sed -i "s|^${var_to_override}=.*|${var_to_override}=${new_value}|" "$env_file"
 }
 
-pre_startup_sanity() {
-  if [[ ${UPDATE_CHECK} = Y && ${SKIP_UPDATE} != Y ]]; then
-
-    echo "Checking for script updates..."
-
-    # Check availability of checkUpdate function
-    if [[ ! $(command -v checkUpdate) ]]; then
-      echo -e "\nCould not find checkUpdate function in env, make sure you're using official guild docos for installation!"
-      exit 1
-    fi
-
-    # check for env update
-    ENV_UPDATED=${BATCH_AUTO_UPDATE}
-    checkUpdate "${PARENT}"/env N N N
-    case $? in
-      1) ENV_UPDATED=Y ;;
-      2) exit 1 ;;
-    esac
-
-    # check for cncli.sh update
-    checkUpdate "${PARENT}"/cncli.sh ${ENV_UPDATED}
-    case $? in
-      1) $0 "-u" "$@"; exit 0 ;; # re-launch script with same args skipping update check
-      2) exit 1 ;;
-    esac
-  fi
-  
+mithril_init() {
   REQUIRED_PARAMETERS="Y"
-  if [[ ! -f "${CNODE_HOME}"/mithril/mithril.env ]]; then
-    echo "INFO: Mithril environment file not found, creating environment file.."
-    environment_setup && echo "INFO: Mithril environment file created successfully!!"
-  elif [[ "${UPDATE_ENVIRONMENT}" == "Y" ]]; then
-    echo "INFO: Updating mithril environment file.."
-    environment_setup && echo "INFO: Mithril environment file updated successfully!!"
-  fi
   . "${CNODE_HOME}"/mithril/mithril.env
-  [[ -z "${NETWORK}" ]] && echo "ERROR: The NETWORK must be set before calling mithril-client!!" && REQUIRED_PARAMETERS="N"
+  [[ -z "${NETWORK}" ]] && echo "ERROR: The NETWORK must be set before calling $(basename "${0::-3}")!!" && REQUIRED_PARAMETERS="N"
   [[ -z "${RELEASE}" ]] && echo "ERROR: Failed to set RELEASE variable, please check NETWORK variable in env file!!" && REQUIRED_PARAMETERS="N"
-  [[ -z "${CNODE_HOME}" ]] && echo "ERROR: The CNODE_HOME must be set before calling mithril-client!!" && REQUIRED_PARAMETERS="N"
+  [[ -z "${CNODE_HOME}" ]] && echo "ERROR: The CNODE_HOME must be set before calling $(basename "${0::-3}")!!" && REQUIRED_PARAMETERS="N"
   [[ ! -d "${CNODE_HOME}" ]] && echo "ERROR: The CNODE_HOME directory does not exist, please check CNODE_HOME variable in env file!!" && REQUIRED_PARAMETERS="N"
-  [[ -z "${AGGREGATOR_ENDPOINT}" ]] && echo "ERROR: The AGGREGATOR_ENDPOINT must be set before calling mithril-client!!" && REQUIRED_PARAMETERS="N"
-  [[ -z "${GENESIS_VERIFICATION_KEY}" ]] && echo "ERROR: The GENESIS_VERIFICATION_KEY must be set before calling mithril-client!!" && REQUIRED_PARAMETERS="N"
+  [[ -z "${AGGREGATOR_ENDPOINT}" ]] && echo "ERROR: The AGGREGATOR_ENDPOINT must be set before calling $(basename "${0::-3}")!!" && REQUIRED_PARAMETERS="N"
+  [[ -z "${GENESIS_VERIFICATION_KEY}" ]] && echo "ERROR: The GENESIS_VERIFICATION_KEY must be set before calling $(basename "${0::-3}")!!" && REQUIRED_PARAMETERS="N"
   [[ ! -x "${MITHRILBIN}" ]] && echo "ERROR: The MITHRILBIN variable does not contain an executable file, please check MITHRILBIN variable in env file!!" && REQUIRED_PARAMETERS="N"
   [[ "${REQUIRED_PARAMETERS}" != "Y" ]] && exit 1
   export GENESIS_VERIFICATION_KEY
@@ -170,26 +85,6 @@ pre_startup_sanity() {
   REMOVE_DB_DIR="N"
 }
 
-set_defaults() {
-  [[ -z "${MITHRILBIN}" ]] && MITHRILBIN="${HOME}"/.local/bin/mithril-client
-  if [[ -z "${NETWORK_NAME}" ]]; then
-    echo "ERROR: The NETWORK_NAME must be set before mithril-client can download snapshots!!"
-    exit 1
-  else
-    case "${NETWORK_NAME,,}" in
-      mainnet|preprod|guild)
-      RELEASE="release"
-      ;;
-      preview)
-      RELEASE="pre-release"
-      ;;
-      *)
-      echo "ERROR: The NETWORK_NAME must be set to Mainnet, PreProd, Preview, Guild before mithril-client can download snapshots!!"
-      exit 1
-    esac
-  fi
-  pre_startup_sanity
-}
 
 check_db_dir() {
   # If the DB directory does not exist then set DOWNLOAD_SNAPSHOT to Y
@@ -273,23 +168,26 @@ list_stake_distributions() {
 }
 
 #####################
-# Execution         #
+# Execution/Main    #
 #####################
+
+update_check "$@"
+
+set_defaults
 
 # Parse command line options
 case $1 in
   environment)
-    set_defaults
     case $2 in
       setup)    
-        environment_setup
+        generate_environment_file
         ;;
       override)
         environment_override $3 $4
         ;;
       update)
-        UPDATE_ENVIRONMENT="Y"
-        environment_setup
+        export UPDATE_ENVIRONMENT="Y"
+        generate_environment_file
         ;;
       *)
         echo "Invalid environment subcommand: $2" >&2
@@ -299,7 +197,6 @@ case $1 in
     esac
     ;;
   snapshot)
-    set_defaults
     case $2 in
       download)
         check_db_dir
@@ -327,7 +224,6 @@ case $1 in
     esac
     ;;
   stake-distribution)
-    set_defaults
     case $2 in
       download)
         download_stake_distribution
